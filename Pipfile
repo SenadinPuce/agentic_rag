@@ -13,6 +13,7 @@ black = "*"
 pypdf = "*"
 langchainhub = "*"
 tavily-python = "*"
+streamlit = "*"
 
 [dev-packages]
 

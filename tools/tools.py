@@ -7,7 +7,8 @@ from langchain_pinecone import PineconeVectorStore
 
 from langsmith import traceable
 
-@tool
+
+@tool("WebSearch")
 @traceable
 def web_search_tool(query: str) -> str:
     """

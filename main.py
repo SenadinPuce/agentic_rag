@@ -1,86 +1,59 @@
-from dotenv import load_dotenv
-from httpx import get
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-from langchain.tools.render import render_text_description_and_args
-from langchain.schema.runnable import RunnablePassthrough
-from langchain.agents import AgentExecutor 
-from langchain.agents.output_parsers import JSONAgentOutputParser
-from langchain.agents.format_scratchpad import format_log_to_str
-from tools.tools import vector_search_tool, web_search_tool
+import streamlit as st
+from backend.core import main
+from data.ingestion import ingest_docs
 
-load_dotenv()
+st.set_page_config(page_title="Agentic RAG", page_icon="🤖", layout="wide")
 
 
-llm = ChatOpenAI(model="gpt-4o-mini", verbose=True, temperature=0)
-
-tools_for_agent = [
-    vector_search_tool,
-    web_search_tool,
-]
-
-system_prompt = """Respond to the human as helpfully and accurately as possible. You have access to the following tools: {tools}
-Always try the \"VectorStoreSearch\" tool first. Only use \"WebSearch\" if the vector store does not contain the required information.
-Use a json blob to specify a tool by providing an action key (tool name) and an action_input key (tool input).
-Valid "action" values: "Final Answer" or {tool_names}
-Provide only ONE action per $JSON_BLOB, as shown:"
-```
-{{
-  "action": $TOOL_NAME,
-  "action_input": $INPUT
-}}
-```
-Follow this format:
-Question: input question to answer
-Thought: consider previous and subsequent steps
-Action:
-```
-$JSON_BLOB
-```
-Observation: action result
-... (repeat Thought/Action/Observation N times)
-Thought: I know what to respond
-Action:
-```
-{{
-  "action": "Final Answer",
-  "action_input": "Final response to human"
-}}
-Begin! Reminder to ALWAYS respond with a valid json blob of a single action.
-Respond directly if appropriate. Format is Action:```$JSON_BLOB```then Observation"""
-
-human_prompt = """{input}
-{agent_scratchpad}
-(reminder to always respond in a JSON blob)"""
+def initialize_session_state():
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
 
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", system_prompt),
-        ("human", human_prompt),
-    ]
-)
+def display_chat_history():
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 
-prompt = prompt.partial(
-    tools=render_text_description_and_args(list(tools_for_agent)),
-    tool_names=", ".join([t.name for t in tools_for_agent]),
-)
+def main_chat():
+    st.title("Agentic RAG")
+    st.markdown("### Your Personal AI Assistant")
+
+    initialize_session_state()
+
+    display_chat_history()
+
+    with st.sidebar:
+        st.header("Upload PDF Document")
+        uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+        if uploaded_file:
+            with st.spinner("Uploading and processing document..."):
+                try:
+                    success = ingest_docs(uploaded_file)
+                    if success:
+                        st.success("Document ingested successfully!")
+                    else:
+                        st.error("Document ingestion failed!")
+                except Exception as e:
+                    st.error(f"Error processing document: {e}")
+
+    if prompt := st.chat_input("What would you like to know?"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                response = main(prompt)
+
+        st.session_state.messages.append(
+            {"role": "assistant", "content": response["output"]}
+        )
+
+        st.rerun()
 
 
-chain = (
-    RunnablePassthrough.assign(
-        agent_scratchpad=lambda x: format_log_to_str(x["intermediate_steps"]),
-    )
-    | prompt
-    | llm
-    | JSONAgentOutputParser()
-)
-
-
-
-agent_executor = AgentExecutor(
-    agent=chain, tools=tools_for_agent, handle_parsing_errors=True, verbose=True
-)
-
-agent_executor.invoke({"input": "Ko je Tesla?"})
+if __name__ == "__main__":
+    main_chat()
