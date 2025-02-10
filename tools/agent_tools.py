@@ -22,10 +22,8 @@ def web_search_tool(query: str) -> str:
     formatted_results = []
 
     for result in results:
-        formatted_results.append(
-            f"URL: {result.get('url', 'N/A')}\n"
-            f"Content: {result.get('content', 'N/A')}\n"
-        )
+        result_entry = {"url": result["url"], "content": result["content"]}
+        formatted_results.append(result_entry)
 
     return formatted_results
 

@@ -7,8 +7,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
-logging.basicConfig(level=logging.INFO)
-
 
 def ingest_docs(file: UploadedFile) -> bool:
     try:

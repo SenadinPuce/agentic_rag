@@ -1,5 +1,5 @@
 import streamlit as st
-from backend.core import main
+from backend.workflow import app
 from data.ingestion import ingest_docs
 
 st.set_page_config(page_title="Agentic RAG", page_icon="🤖", layout="wide")
@@ -46,10 +46,10 @@ def main_chat():
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = main(prompt)
+                response = app.invoke({"question": prompt})
 
         st.session_state.messages.append(
-            {"role": "assistant", "content": response["output"]}
+            {"role": "assistant", "content": response["generation"]}
         )
 
         st.rerun()
